@@ -1,0 +1,8 @@
+.env
+*.db
+.pio/
+__pycache__/
+.venv/
+firmware/include/secrets.h
+docker/certs/
+docker/mosquitto/passwd
