@@ -1,0 +1,10 @@
+user esp32_cermin01
+topic write unib/glowlight/kelompok-02/cermin01/telemetry
+topic write unib/glowlight/kelompok-02/cermin01/status
+topic read unib/glowlight/kelompok-02/cermin01/cmd
+
+user gateway
+topic read unib/glowlight/#
+
+user bot
+topic write unib/glowlight/+/+/cmd
