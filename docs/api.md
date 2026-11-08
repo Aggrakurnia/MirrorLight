@@ -1,5 +1,5 @@
 # Dokumentasi API GlowLight
-
+![Swagger UI](swagger.png)
 Base URL pengembangan: `http://localhost:8000`. Dokumentasi interaktif (Swagger) tersedia di `/docs`.
 
 ## Autentikasi
