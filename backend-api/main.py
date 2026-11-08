@@ -1,7 +1,7 @@
 import os
 from datetime import datetime, timezone
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Query
 from influxdb_client import InfluxDBClient, Point, WritePrecision
 from influxdb_client.client.write_api import SYNCHRONOUS
 from pydantic import BaseModel, Field
@@ -14,6 +14,7 @@ influx = InfluxDBClient(url=os.getenv('INFLUX_URL', 'http://localhost:8086'),
                         token=os.getenv('INFLUX_TOKEN', ''),
                         org=os.getenv('INFLUX_ORG', 'unib'))
 write_api = influx.write_api(write_options=SYNCHRONOUS)
+query_api = influx.query_api()
 
 app = FastAPI(title='GlowLight API', version='1.0')
 app.include_router(auth_router)
@@ -51,3 +52,16 @@ def ingest(t: Telemetry, user: str = Depends(require_auth)):
     write_api.write(bucket=BUCKET, record=point)
     alerts.check(t.model_dump())
     return {'ok': True}
+
+@app.get('/api/latest')
+def latest(device_id: str = Query('glowlight-01', pattern='^[A-Za-z0-9_-]{1,40}$'),
+           user: str = Depends(require_auth)):
+    flux = ('from(bucket: "%s") |> range(start: -10m) '
+            '|> filter(fn: (r) => r._measurement == "glowlight" and r.device_id == "%s") '
+            '|> last() '
+            '|> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")'
+            ) % (BUCKET, device_id)
+    skip = ('result', 'table', '_start', '_stop', '_measurement')
+    rows = [{k: v for k, v in rec.values.items() if k not in skip}
+            for table in query_api.query(flux) for rec in table.records]
+    return rows[-1] if rows else {}
