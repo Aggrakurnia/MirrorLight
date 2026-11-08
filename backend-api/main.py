@@ -65,3 +65,17 @@ def latest(device_id: str = Query('glowlight-01', pattern='^[A-Za-z0-9_-]{1,40}$
     rows = [{k: v for k, v in rec.values.items() if k not in skip}
             for table in query_api.query(flux) for rec in table.records]
     return rows[-1] if rows else {}
+
+@app.get('/api/history')
+def history(device_id: str = Query(..., pattern='^[A-Za-z0-9_-]{1,40}$'),
+            field: str = Query('ldr_pct', pattern='^(ldr_pct|ldr_raw|duty)$'),
+            minutes: int = Query(60, ge=1, le=1440),
+            user: str = Depends(require_auth)):
+    flux = ('from(bucket: "%s") |> range(start: -%dm) '
+            '|> filter(fn: (r) => r._measurement == "glowlight" and r.device_id == "%s" '
+            'and r._field == "%s") '
+            '|> aggregateWindow(every: 1m, fn: mean, createEmpty: false)'
+            ) % (BUCKET, minutes, device_id, field)
+    points = [{'time': rec.get_time().isoformat(), 'value': rec.get_value()}
+              for table in query_api.query(flux) for rec in table.records]
+    return {'device_id': device_id, 'field': field, 'points': points}
