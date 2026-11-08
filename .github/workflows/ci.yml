@@ -1,0 +1,22 @@
+name: CI
+on: [push, pull_request]
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install flake8
+      - run: flake8 backend-api edge-gateway bot --count --select=E9,F63,F7,F82 --show-source --statistics
+  firmware:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install platformio
+      - run: cp firmware/include/secrets.example.h firmware/include/secrets.h
+      - run: pio run -d firmware
