@@ -6,3 +6,5 @@ __pycache__/
 firmware/include/secrets.h
 docker/certs/
 docker/mosquitto/passwd
+.pio/
+firmware/src/secrets.h

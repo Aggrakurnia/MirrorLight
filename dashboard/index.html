@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cermin Otomatis – Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/mqtt@5.3.4/dist/mqtt.min.js"></script>
+<style>
+:root{--ink:#3b2a55;--mute:#6f5f8a;--glass:rgba(255,255,255,.42);--edge:rgba(255,255,255,.65);--acc:#a67be8;--acc2:#f08fc8;--ok:#3fa56b;--bad:#e0527f;--wait:#e0a82e}
+*{box-sizing:border-box;margin:0}
+html,body{min-height:100%}
+body{font-family:Inter,system-ui,sans-serif;color:var(--ink);background:
+radial-gradient(ellipse at 15% 90%,#f6a9d4 0,transparent 45%),
+radial-gradient(ellipse at 90% 80%,#e58fc9 0,transparent 40%),
+linear-gradient(180deg,#8f78c9 0,#c3a0dc 35%,#eebfd8 70%,#f7d3e0 100%);background-attachment:fixed;padding:20px 28px 40px}
+.orb{position:fixed;top:-120px;left:50%;width:340px;height:340px;margin-left:-170px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff9,#fff2 40%,#c6a8f088 75%);box-shadow:inset 0 -30px 60px #fff5;pointer-events:none}
+header{position:relative;display:flex;align-items:center;gap:24px;flex-wrap:wrap}
+.brand{font-family:"Cormorant Garamond",serif;font-size:26px;font-weight:500;letter-spacing:.04em}
+nav{display:flex;gap:6px;background:var(--glass);border:1px solid var(--edge);border-radius:99px;padding:5px;backdrop-filter:blur(14px)}
+nav button{border:0;background:none;font:500 14px Inter;color:var(--ink);padding:8px 18px;border-radius:99px;cursor:pointer}
+nav button.on{background:linear-gradient(90deg,#c9a8ff,#f3a6d6)}
+.pills{margin-left:auto;display:flex;gap:10px;flex-wrap:wrap}
+.pill{display:flex;align-items:center;gap:8px;font-size:13px;padding:8px 14px;border-radius:99px;background:var(--glass);border:1px solid var(--edge)}
+.pill i{width:10px;height:10px;border-radius:50%;background:var(--bad)}
+.pill.ok i{background:var(--ok)}.pill.wait i{background:var(--wait)}
+h1{position:relative;font-family:"Cormorant Garamond",serif;font-weight:500;font-size:clamp(38px,5vw,56px);margin:34px 0 4px 6px;color:#fff;text-shadow:0 2px 18px #7a52b855}
+.sub{position:relative;font-family:"Cormorant Garamond",serif;font-style:italic;font-size:21px;color:#fffd;margin:0 0 26px 6px}
+.grid{position:relative;display:grid;grid-template-columns:repeat(3,1fr);gap:18px;max-width:1280px}
+.card{background:var(--glass);border:1px solid var(--edge);border-radius:26px;padding:20px 24px;backdrop-filter:blur(16px);box-shadow:0 10px 40px #6b3fa022}
+.card h2{font:600 17px Inter;margin-bottom:14px}
+.wide{grid-column:1/-1}
+.lamp{display:flex;align-items:center;gap:22px}
+.bulb{width:112px;height:112px;border-radius:50%;display:grid;place-items:center;background:#ffffff55;transition:.35s}
+.bulb svg{width:56px;height:56px;fill:#b9a9cf;transition:.35s}
+.lamp.on .bulb{background:radial-gradient(#fff6c8,#ffe27a88 70%);box-shadow:0 0 50px #ffd95a}
+.lamp.on .bulb svg{fill:#f5b400}
+.big{font:600 24px Inter}
+.mini{font-size:13px;color:var(--mute)}
+.rows div{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #ffffff55;font-size:14px}
+.rows div:last-child{border:0}
+.rows b{font-weight:600}
+.bar{position:relative;height:16px;border-radius:99px;background:#ffffff66;margin:10px 0 12px}
+.fill{height:100%;width:0;border-radius:99px;background:linear-gradient(90deg,#c9a8ff,#f08fc8);transition:width .4s}
+.mark{position:absolute;top:-4px;width:4px;height:24px;border-radius:3px;background:#f5b400;left:0;display:none}
+.seg{display:flex;gap:8px}
+.seg button{flex:1;border:0;padding:11px;border-radius:99px;font:500 14px Inter;color:var(--ink);background:#ffffff66;cursor:pointer}
+.seg button.on{background:linear-gradient(90deg,#c9a8ff,#f3a6d6);box-shadow:0 4px 14px #a67be866}
+.note{font-size:13px;color:var(--mute);margin-top:12px;line-height:1.5}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+label{font-size:13px;color:var(--mute);display:block}
+input{width:100%;margin-top:5px;padding:10px 12px;border-radius:12px;border:1px solid #fff9;background:#ffffff88;font:14px Inter;color:var(--ink)}
+.thr{margin-bottom:16px}
+.thr .head{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.thr .head input{width:92px;margin-top:0;text-align:center;padding:7px 8px}
+.thr input[type=range]{padding:0;border:0;background:none;accent-color:#a67be8;height:28px;margin-top:6px;cursor:pointer}
+.btn{border:0;padding:12px 22px;border-radius:99px;font:600 14px Inter;color:#fff;cursor:pointer;background:linear-gradient(90deg,#a67be8,#f08fc8)}
+canvas{width:100%;height:190px;display:block}
+.log{max-height:420px;overflow:auto;font-size:14px}
+.log div{padding:8px 0;border-bottom:1px solid #ffffff55;display:flex;gap:14px}
+.log span{color:var(--mute);min-width:70px}
+.view{display:none}.view.on{display:block}
+:focus-visible{outline:3px solid #6c3fc9;outline-offset:2px}
+@media(max-width:900px){.grid{grid-template-columns:1fr}.pills{margin-left:0}body{padding:16px}}
+</style>
+</head>
+<body>
+<div class="orb"></div>
+<header>
+  <div class="brand">GlowLight</div>
+  <nav aria-label="Menu">
+    <button class="on" data-v="home">Home</button>
+    <button data-v="riwayat">Riwayat</button>
+    <button data-v="set">Pengaturan</button>
+  </nav>
+  <div class="pills">
+    <div class="pill" id="pB"><i></i><span>Broker: terputus</span></div>
+    <div class="pill wait" id="pD"><i></i><span>Perangkat: menunggu</span></div>
+  </div>
+</header>
+
+<h1>Cermin Otomatis</h1>
+<p class="sub">Pantau sensor dan atur lampu cermin dari mana saja.</p>
+
+<main>
+<section class="view on" id="home">
+ <div class="grid">
+  <div class="card" id="lampCard">
+    <h2>Lampu</h2>
+    <div class="lamp" id="lamp">
+      <div class="bulb"><svg viewBox="0 0 24 24"><path d="M9 21h6v-1H9v1zm3-19a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/></svg></div>
+      <div><div class="mini">Status</div><div class="big" id="lampTxt">–</div><div class="mini" style="margin-top:6px">Mode: <b id="modeTxt">–</b></div></div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Sensor</h2>
+    <div class="rows">
+      <div>PIR (gerakan)<b id="sPir">–</b></div>
+      <div>Kondisi cahaya<b id="sCahaya">–</b></div>
+      <div>Status PIR<b id="sSiap">–</b></div>
+      <div>Skor gelap<b id="sSkor">–</b></div>
+      <div>RAW LDR<b id="sRaw">–</b></div>
+      <div>Uptime<b id="sUp">–</b></div>
+      <div>Wi‑Fi RSSI<b id="sRssi">–</b></div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Skor gelap</h2>
+    <div class="bar"><div class="fill" id="fill"></div><div class="mark" id="mG"></div></div>
+    <p class="mini">Garis kuning = ambang gelap (0–4095)</p>
+  </div>
+  <div class="card">
+    <h2>Kontrol lampu</h2>
+    <div class="seg" id="seg">
+      <button data-m="auto">Otomatis</button><button data-m="on">ON</button><button data-m="off">OFF</button>
+    </div>
+    <div class="thr" style="margin:18px 0 0">
+      <div class="head"><label for="sB">Kecerahan lampu</label><input id="tB" type="number" min="0" max="100" aria-label="Kecerahan lampu dalam persen"></div>
+      <input id="sB" type="range" min="0" max="100" step="1" value="100">
+    </div>
+    <p class="note">Otomatis: lampu menyala saat gelap atau ada gerakan. ON atau OFF memaksa lampu.</p>
+  </div>
+  <div class="card">
+    <h2>Ambang cahaya</h2>
+    <div class="thr">
+      <div class="head"><label for="sG">Ambang gelap</label><input id="tG" type="number" min="1" max="4095" aria-label="Nilai ambang gelap"></div>
+      <input id="sG" type="range" min="1" max="4095" step="1" value="3000">
+    </div>
+    <div class="thr">
+      <div class="head"><label for="sT">Ambang terang</label><input id="tT" type="number" min="1" max="4095" aria-label="Nilai ambang terang"></div>
+      <input id="sT" type="range" min="1" max="4095" step="1" value="2600">
+    </div>
+    <button class="btn" id="sendThr">Kirim ambang</button>
+    <p class="note">Geser lalu klik Kirim ambang. Ambang terang selalu lebih kecil dari ambang gelap.</p>
+  </div>
+  <div class="card wide">
+    <h2>Skor gelap, 3 menit terakhir</h2>
+    <canvas id="cv"></canvas>
+  </div>
+ </div>
+</section>
+
+<section class="view" id="riwayat">
+  <div class="card" style="max-width:900px"><h2>Riwayat kejadian</h2>
+  <div class="log" id="log"><div><span></span>Belum ada kejadian.</div></div></div>
+</section>
+
+<section class="view" id="set">
+  <div class="card" style="max-width:700px"><h2>Pengaturan koneksi</h2>
+    <div class="two">
+      <label>URL broker (WebSocket)<input id="cUrl"></label>
+      <label>Topik dasar<input id="cBase"></label>
+      <label>Username (opsional)<input id="cUser" autocomplete="off"></label>
+      <label>Password (opsional)<input id="cPass" type="password" autocomplete="off"></label>
+      <label>Topik perintah<input id="cCmd"></label>
+    </div>
+    <p class="note" style="margin:0 0 14px">Topik dasar harus sama persis dengan di secrets.h. Topik perintah ditulis relatif terhadap topik dasar (firmware memakai cmd).</p>
+    <button class="btn" id="saveCfg">Simpan dan sambung</button>
+  </div>
+</section>
+</main>
+
+<script>
+const $=id=>document.getElementById(id);
+const DEF={url:'wss://broker.hivemq.com:8884/mqtt',base:'unib/glowlight/kelompok-02/cermin01',user:'',pass:'',cmd:'cmd'};
+let cfg={...DEF};
+try{Object.assign(cfg,JSON.parse(localStorage.getItem('cermin-cfg')||'{}'))}catch(e){}
+
+/* ---------- navigasi ---------- */
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===b));
+  document.querySelectorAll('.view').forEach(v=>v.classList.toggle('on',v.id===b.dataset.v));
+  if(b.dataset.v==='home')draw();
+});
+
+/* ---------- util ---------- */
+const g=(o,ks)=>{for(const k of ks)if(o[k]!==undefined&&o[k]!==null)return o[k]};
+const yes=v=>v===true||v===1||v==='1'||/^(on|true|ya)$/i.test(String(v));
+const fmtUp=s=>{s=+s;if(isNaN(s))return '–';const h=Math.floor(s/3600),m=Math.floor(s%3600/60);return (h?h+' j ':'')+m+' m '+Math.floor(s%60)+' d'};
+function log(t){
+  const l=$('log');if(l.firstChild&&!l.firstChild.firstChild.textContent)l.innerHTML='';
+  const d=document.createElement('div');
+  d.innerHTML='<span>'+new Date().toLocaleTimeString('id-ID')+'</span>';
+  d.append(t);l.prepend(d);while(l.children.length>100)l.lastChild.remove();
+}
+function pill(el,cls,txt){el.className='pill '+cls;el.lastChild.textContent=txt}
+
+/* ---------- state ---------- */
+const S={lamp:null,mode:null,thrG:null,thrT:null,pts:[]};
+let lastTele=0,devState='wait';
+
+function setDev(s){
+  if(s===devState)return;devState=s;
+  pill($('pD'),s==='online'?'ok':s==='offline'?'':'wait','Perangkat: '+(s==='online'?'online':s==='offline'?'offline':'menunggu'));
+  if(s!=='wait')log('Perangkat '+s);
+}
+function setMode(m){
+  S.mode=m;
+  document.querySelectorAll('#seg button').forEach(b=>b.classList.toggle('on',b.dataset.m===m));
+  $('modeTxt').textContent=m==='auto'?'Otomatis':m==='on'?'ON (manual)':m==='off'?'OFF (manual)':'–';
+}
+function setLamp(on){
+  if(S.lamp!==null&&S.lamp!==on)log('Lampu '+(on?'menyala':'mati'));
+  S.lamp=on;$('lamp').classList.toggle('on',on);$('lampTxt').textContent=on?'Menyala':'Mati';
+}
+function marker(){
+  const m=$('mG');if(S.thrG==null){m.style.display='none';return}
+  m.style.display='block';m.style.left='calc('+Math.min(100,S.thrG/4095*100)+'% - 2px)';
+}
+
+/* ---------- slider ambang ---------- */
+const clamp=v=>Math.max(1,Math.min(4095,Math.round(+v)||1));
+function setG(v){v=clamp(v);$('tG').value=v;$('sG').value=v;if(+$('tT').value>=v)setT(v-1)}
+function setT(v){v=clamp(v);$('tT').value=v;$('sT').value=v;if(+$('tG').value<=v)setG(v+1)}
+$('sG').oninput=()=>setG($('sG').value);
+$('sT').oninput=()=>setT($('sT').value);
+$('tG').onchange=()=>setG($('tG').value);
+$('tT').onchange=()=>setT($('tT').value);
+setG(3000);setT(2600);
+/* ---------- kecerahan ---------- */
+const clampB=v=>Math.max(0,Math.min(100,Math.round(+v)||0));
+let lastBr=0;
+function setB(v,kirim){
+  v=clampB(v);$('tB').value=v;$('sB').value=v;
+  if(!kirim)return;
+  const n=Date.now();
+  if(kirim==='final'||n-lastBr>250){lastBr=n;send(cfg.cmd,JSON.stringify({br:v}))}
+}
+$('sB').oninput=()=>setB($('sB').value,'live');
+$('sB').onchange=()=>{setB($('sB').value,'final');log('Kecerahan lampu: '+$('sB').value+'%')};
+$('tB').onchange=()=>{setB($('tB').value,'final');log('Kecerahan lampu: '+$('tB').value+'%')};
+setB(100);
+const busy=a=>[$('tG'),$('sG'),$('tT'),$('sT')].includes(document.activeElement)&&a;
+
+/* ---------- telemetri ---------- */
+function onTele(d){
+  lastTele=Date.now();setDev('online');
+  const pir=g(d,['pir','gerakan','motion']),skor=g(d,['skor','score','skor_gelap','dark_score']),
+    raw=g(d,['raw','ldr','raw_ldr']),gelap=g(d,['gelap','dark','is_dark']),lampu=g(d,['lampu','lamp','relay','led']),
+    mode=g(d,['mode']),siap=g(d,['siap','ready']),up=g(d,['uptime','up']),rssi=g(d,['rssi','wifi_rssi']),
+    tg=g(d,['ag','ambang_gelap','thr_gelap','dark_thr','th_gelap']),br=g(d,['br','kecerahan','bright']),tt=g(d,['at','ambang_terang','thr_terang','bright_thr','th_terang']);
+  if(pir!==undefined)$('sPir').textContent=yes(pir)?'Ada gerakan':'Tidak ada';
+  if(gelap!==undefined)$('sCahaya').textContent=yes(gelap)?'Gelap':'Terang';
+  if(skor!==undefined){$('sSkor').textContent=skor;$('fill').style.width=Math.min(100,skor/4095*100)+'%';S.pts.push({t:Date.now(),v:+skor})}
+  else if(raw!==undefined)S.pts.push({t:Date.now(),v:+raw});
+  if(siap!==undefined)$('sSiap').textContent=yes(siap)?'Siap':'Pemanasan (60 d)';
+  if(raw!==undefined)$('sRaw').textContent=raw;
+  if(up!==undefined)$('sUp').textContent=fmtUp(up);
+  if(rssi!==undefined)$('sRssi').textContent=rssi+' dBm';
+  if(lampu!==undefined)setLamp(yes(lampu));
+  if(mode!==undefined){const m=String(mode).toLowerCase();setMode({'0':'auto','1':'on','2':'off',auto:'auto',on:'on',off:'off'}[m]||S.mode)}
+  if(tg!==undefined){S.thrG=+tg;marker()}
+  if(tt!==undefined){S.thrT=+tt}
+  /* jangan timpa slider saat sedang digeser atau diketik */
+  if(br!==undefined&&document.activeElement!==$('sB')&&document.activeElement!==$('tB'))setB(br);
+  if(!busy(true)){
+    if(tg!==undefined){$('tG').value=clamp(tg);$('sG').value=clamp(tg)}
+    if(tt!==undefined){$('tT').value=clamp(tt);$('sT').value=clamp(tt)}
+  }
+  S.pts=S.pts.filter(p=>p.t>Date.now()-18e4);draw();
+}
+
+/* ---------- grafik ---------- */
+function draw(){
+  const c=$('cv'),r=devicePixelRatio||1,w=c.clientWidth,h=c.clientHeight;if(!w)return;
+  c.width=w*r;c.height=h*r;const x=c.getContext('2d');x.scale(r,r);
+  const L=44,B=h-8,T=8,Y=v=>B-(B-T)*v/4095;
+  x.font='12px Inter';x.fillStyle='#6f5f8a';x.strokeStyle='#ffffff88';x.lineWidth=1;
+  [0,1024,2048,3071,4095].forEach(v=>{x.beginPath();x.moveTo(L,Y(v));x.lineTo(w,Y(v));x.stroke();x.fillText(v,2,Y(v)+4)});
+  if(S.thrG!=null){x.strokeStyle='#f5b400';x.setLineDash([6,4]);x.beginPath();x.moveTo(L,Y(S.thrG));x.lineTo(w,Y(S.thrG));x.stroke();x.setLineDash([])}
+  if(S.pts.length<2)return;
+  const now=Date.now(),X=t=>L+(w-L)*(1-(now-t)/18e4);
+  x.strokeStyle='#8a56d8';x.lineWidth=2.5;x.lineJoin='round';x.beginPath();
+  S.pts.forEach((p,i)=>i?x.lineTo(X(p.t),Y(p.v)):x.moveTo(X(p.t),Y(p.v)));x.stroke();
+}
+addEventListener('resize',draw);
+
+/* ---------- MQTT ---------- */
+let cli;
+function connect(){
+  if(cli)cli.end(true);
+  pill($('pB'),'wait','Broker: menyambung');
+  cli=mqtt.connect(cfg.url,{clientId:'dash-'+Math.random().toString(16).slice(2,8),username:cfg.user||undefined,password:cfg.pass||undefined,reconnectPeriod:3000,connectTimeout:8000});
+  cli.on('connect',()=>{pill($('pB'),'ok','Broker: tersambung');cli.subscribe(cfg.base+'/#');log('Tersambung ke broker')});
+  cli.on('close',()=>pill($('pB'),'','Broker: terputus'));
+  cli.on('error',e=>log('Error broker: '+e.message));
+  cli.on('message',(t,m)=>{
+    const rel=t.slice(cfg.base.length+1),p=m.toString().trim();
+    if(rel.startsWith('cmd'))return;
+    let j=null;try{j=JSON.parse(p)}catch(e){}
+    if(/status|lwt|online/i.test(rel)){
+      const s=String(j&&typeof j==='object'?g(j,['status','state'])??p:p).toLowerCase();
+      if(s.includes('offline'))setDev('offline');else if(s.includes('online'))setDev('online');
+      if(j&&typeof j==='object'&&g(j,['skor','pir','raw'])!==undefined)onTele(j);
+    }else if(j&&typeof j==='object')onTele(j);
+  });
+}
+function send(rel,payload){
+  if(!cli||!cli.connected){log('Gagal kirim: broker belum tersambung');return false}
+  cli.publish(cfg.base+'/'+rel,payload,{qos:1});return true;
+}
+
+/* ---------- kontrol ---------- */
+document.querySelectorAll('#seg button').forEach(b=>b.onclick=()=>{
+  const m=b.dataset.m;
+  if(send(cfg.cmd,JSON.stringify({mode:m}))){setMode(m);log('Perintah mode: '+b.textContent)}
+});
+$('sendThr').onclick=()=>{
+  const g1=parseInt($('tG').value),t1=parseInt($('tT').value);
+  if(isNaN(g1)||isNaN(t1)||g1<1||t1<1||g1>4095){log('Ambang harus berupa angka 1–4095');return}
+  if(t1>=g1){log('Ambang terang harus lebih kecil dari ambang gelap');return}
+  if(send(cfg.cmd,JSON.stringify({ag:g1,at:t1}))){S.thrG=g1;S.thrT=t1;marker();draw();log('Ambang dikirim: gelap '+g1+', terang '+t1)}
+};
+
+/* ---------- pengaturan ---------- */
+const F={url:'cUrl',base:'cBase',user:'cUser',pass:'cPass',cmd:'cCmd'};
+Object.entries(F).forEach(([k,id])=>$(id).value=cfg[k]);
+$('saveCfg').onclick=()=>{
+  Object.entries(F).forEach(([k,id])=>cfg[k]=$(id).value.trim());
+  try{localStorage.setItem('cermin-cfg',JSON.stringify(cfg))}catch(e){}
+  S.pts=[];connect();document.querySelector('nav button').click();
+};
+
+/* perangkat dianggap menunggu bila telemetri berhenti */
+setInterval(()=>{if(devState==='online'&&Date.now()-lastTele>20000){devState='';setDev('wait')}},3000);
+connect();draw();
+</script>
+</body>
+</html>
